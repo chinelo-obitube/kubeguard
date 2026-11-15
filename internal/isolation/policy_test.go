@@ -26,6 +26,14 @@ func TestBuildPolicy(t *testing.T) {
 		t.Fatalf("unexpected policy name: %s", policy.Name)
 	}
 
+	if got := policy.Labels["app.kubernetes.io/managed-by"]; got != "kubeguard" {
+		t.Fatalf("expected managed-by label kubeguard, got %q", got)
+	}
+
+	if got := policy.Annotations["kubeguard.io/peer-namespace"]; got != "backend" {
+		t.Fatalf("expected peer namespace annotation backend, got %q", got)
+	}
+
 	if policy.Spec.PodSelector.MatchLabels["run"] != "client" {
 		t.Fatal("policy does not select the frontend workload")
 	}

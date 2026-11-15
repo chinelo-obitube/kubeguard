@@ -16,7 +16,7 @@ type ApplyResult struct {
 }
 
 func (s *Service) Apply(namespace string) ([]ApplyResult, error) {
-	if err := validateNamespace(namespace); err != nil {
+	if err := ValidateNamespace(namespace); err != nil {
 		return nil, err
 	}
 

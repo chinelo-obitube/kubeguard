@@ -11,7 +11,7 @@ var protectedNamespaces = map[string]bool{
 	"tigera-operator":  true,
 }
 
-func validateNamespace(namespace string) error {
+func ValidateNamespace(namespace string) error {
 	if namespace == "" {
 		return fmt.Errorf("namespace must not be empty")
 	}

@@ -16,7 +16,7 @@ type PreviewItem struct {
 }
 
 func (s *Service) Preview(namespace string) ([]PreviewItem, error) {
-	if err := validateNamespace(namespace); err != nil {
+	if err := ValidateNamespace(namespace); err != nil {
 		return nil, err
 	}
 

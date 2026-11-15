@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"log/slog"
 	"net/http"
 	"os"
@@ -47,10 +48,39 @@ func main() {
 		w.Write([]byte("ok"))
 	})
 
+	mux.HandleFunc("GET /readyz", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("ready"))
+	})
+
+	mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/" {
+			http.NotFound(w, r)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+
+		if err := json.NewEncoder(w).Encode(map[string]any{
+			"name":   "kubeguard",
+			"status": "running",
+			"endpoints": []string{
+				"POST /hardening/preview",
+				"POST /hardening/apply",
+				"POST /isolation/enable",
+				"POST /isolation/disable",
+				"GET /healthz",
+				"GET /readyz",
+			},
+		}); err != nil {
+			logger.Error("failed to write root response", "error", err)
+		}
+	})
+
 	logger.Info("HTTP server starting", "address", ":8080")
 
 	if err := http.ListenAndServe(":8080", api.RequestLogger(logger, mux)); err != nil {
-	logger.Error("HTTP server failed", "error", err)
-	os.Exit(1)
-}
+		logger.Error("HTTP server failed", "error", err)
+		os.Exit(1)
+	}
 }

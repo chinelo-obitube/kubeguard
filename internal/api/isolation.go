@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/chinelo-obitube/kubeguard/internal/isolation"
 )
@@ -35,14 +36,34 @@ func (h *IsolationHandler) Enable(w http.ResponseWriter, r *http.Request) {
 		"namespace_b", request.GroupB.Namespace,
 		"selector_b", request.GroupB.Selector,
 	}
+	start := time.Now()
+
+	h.Logger.Info(
+		"isolation enable started",
+		attrs...,
+	)
 
 	if err := h.Service.Enable(request); err != nil {
-		h.Logger.Error("isolation enable failed", append(attrs, "error", err)...)
+		h.Logger.Error(
+			"isolation enable failed",
+			append(
+				append([]any{}, attrs...),
+				"duration_ms", time.Since(start).Milliseconds(),
+				"error", err,
+			)...,
+		)
+
 		http.Error(w, err.Error(), http.StatusConflict)
 		return
 	}
 
-	h.Logger.Info("network isolation enabled", attrs...)
+	h.Logger.Info(
+		"network isolation enabled",
+		append(
+			append([]any{}, attrs...),
+			"duration_ms", time.Since(start).Milliseconds(),
+		)...,
+	)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
@@ -73,14 +94,34 @@ func (h *IsolationHandler) Disable(w http.ResponseWriter, r *http.Request) {
 		"namespace_b", request.GroupB.Namespace,
 		"selector_b", request.GroupB.Selector,
 	}
+	start := time.Now()
+
+	h.Logger.Info(
+		"isolation disable started",
+		attrs...,
+	)
 
 	if err := h.Service.Disable(request); err != nil {
-		h.Logger.Error("isolation disable failed", append(attrs, "error", err)...)
+		h.Logger.Error(
+			"isolation disable failed",
+			append(
+				append([]any{}, attrs...),
+				"duration_ms", time.Since(start).Milliseconds(),
+				"error", err,
+			)...,
+		)
+
 		http.Error(w, err.Error(), http.StatusConflict)
 		return
 	}
 
-	h.Logger.Info("network isolation disabled", attrs...)
+	h.Logger.Info(
+		"network isolation disabled",
+		append(
+			append([]any{}, attrs...),
+			"duration_ms", time.Since(start).Milliseconds(),
+		)...,
+	)
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{
