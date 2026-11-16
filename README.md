@@ -4,9 +4,20 @@ Kubeguard is a Go-based Kubernetes SRE tool that provides on-demand network isol
 
 **Repository:** https://github.com/chinelo-obitube/kubeguard (private; reviewer access requires an invitation). The submission ZIP includes the complete source snapshot. The `v0.1.0` tag marks the initial implementation; the latest committed `main` includes subsequent fixes and documentation updates.
 
+## Technologies Used
+
+* **[Go](https://go.dev/)** — Programming language used to build Kubeguard.
+* **[Kubernetes](https://kubernetes.io/)** — Orchestration platform used to manage workloads and NetworkPolicies.
+* **[client-go](https://github.com/kubernetes/client-go)** — Kubernetes Go client library used to interact with the Kubernetes API.
+* **[kind](https://kind.sigs.k8s.io/)** — Creates local Kubernetes clusters for development and testing.
+* **[Calico](https://www.tigera.io/project-calico/)** — CNI used to enforce Kubernetes NetworkPolicies.
+* **[Docker](https://www.docker.com/)** — Builds the Kubeguard container image.
+* **[Make](https://www.gnu.org/software/make/)** — Automates building, deployment, and testing.
+* **[kubectl](https://kubernetes.io/docs/reference/kubectl/)** — Used to manage and inspect Kubernetes resources.
+
 ## Features
 
-- **Bidirectional network isolation:** Isolate two groups of Pods identified by namespace and label selector, while preserving unrelated traffic.
+- **Bidirectional network isolation:** Isolate two groups of pods identified by namespace and label selector, while preserving unrelated traffic.
 - **Workload hardening:** Preview and apply missing resource requests, limits, and security settings across one or more namespaces.
 - **Kubernetes-native:** Uses NetworkPolicies and workload updates through the Kubernetes API.
 - **On-demand:** Changes occur when an API endpoint is called; no periodic scanning or reconciliation loop.
@@ -73,6 +84,18 @@ make test
 
 Approximately **5 hours** were spent on the core implementation and initial verification; the final documentation and fresh-clone validation were completed afterward.
 
+### API Endpoints
+
+| HTTP Verbs | Endpoints | Action |
+| --- | --- | --- |
+| GET | `/` | Display Kubeguard API information |
+| GET | `/healthz` | Check if Kubeguard is running |
+| GET | `/readyz` | Check if Kubeguard is ready |
+| POST | `/isolation/enable` | Enable bidirectional network isolation between two Pod groups |
+| POST | `/isolation/disable` | Disable network isolation and restore connectivity |
+| POST | `/hardening/preview` | Preview workload hardening changes without modifying workloads |
+| POST | `/hardening/apply` | Apply missing resource requests, limits, and security settings |
+
 ## API Usage
 
 Kubeguard exposes an HTTP API on port `8080` inside the cluster. After running `make port-forward`, the API is available at `http://localhost:8081`.
@@ -86,7 +109,7 @@ curl http://localhost:8081/readyz
 
 ### Enable and Disable Isolation
 
-Kubeguard isolates two groups of Pods, each defined by a namespace and a label selector.
+Kubeguard isolates two groups of pods, each defined by a namespace and a label selector.
 
 Enable bidirectional isolation:
 
@@ -105,7 +128,7 @@ curl -i -X POST http://localhost:8081/isolation/enable \
   }'
 ```
 
-The service creates a NetworkPolicy in each namespace. Matching Pods cannot communicate across the two groups in either direction, while unrelated traffic remains allowed.
+The service creates a NetworkPolicy in each namespace. Matching pods cannot communicate across the two groups in either direction, while unrelated traffic remains allowed.
 
 Inspect the policies:
 
@@ -134,7 +157,7 @@ curl -i -X POST http://localhost:8081/isolation/disable \
 
 Disabling removes Kubeguard's managed policies and restores connectivity, provided no other NetworkPolicies restrict it.
 
-NetworkPolicies also apply to newly created Pods matching their selectors. Kubeguard does not need to poll for new Pods.
+NetworkPolicies also apply to newly created pods matching their selectors. Kubeguard does not need to poll for new pods.
 
 ### Preview and Apply Hardening
 
@@ -194,7 +217,7 @@ Existing resource values and security settings are preserved.
 
 Applying hardening again is idempotent.
 
-Updating a workload's Pod template triggers a Kubernetes rollout.
+Updating a workload's pod template triggers a Kubernetes rollout.
 
 Inspect the results:
 
@@ -217,12 +240,12 @@ It uses a Kubernetes ServiceAccount and RBAC permissions to manage NetworkPolici
 
 ### Isolation Policy Design
 
-- Each group is identified by one namespace and a Pod label selector.
+- Each group is identified by one namespace and a pod label selector.
 - Enabling isolation creates one NetworkPolicy per namespace.
 - Policies restrict communication between the two selected groups in both directions while allowing unrelated traffic.
-- Kubernetes automatically applies these policies to newly created Pods that match the selectors.
+- Kubernetes automatically applies these policies to newly created pods that match the selectors.
 - Disabling isolation deletes only policies identified as managed by Kubeguard.
-- The service validates the request and checks that matching Pods exist before enabling isolation.
+- The service validates the request and checks that matching pods exist before enabling isolation.
 - If creating the second policy fails, Kubeguard attempts to roll back the first policy.
 
 ### Hardening Design
@@ -257,14 +280,14 @@ This is an assignment-scale, on-demand operator API rather than a production-rea
 
 - **Existing NetworkPolicies:** Enabling isolation is rejected if **any** NetworkPolicy already exists in the cluster. Kubernetes NetworkPolicies are additive: an existing allow policy can make a new restrictive policy ineffective. Rejecting the request is safer than claiming isolation that cannot be guaranteed, but this makes the current implementation unsuitable for many production clusters.
 - **One active configuration per namespace:** The managed NetworkPolicy has a fixed name (`kubeguard-isolation`), and each group belongs to one namespace. Overlapping or concurrent isolation requests are not supported.
-- **No reconciliation:** The service does not persist desired isolation state or continuously repair policies that are edited or deleted outside Kubeguard. Kubernetes itself automatically applies existing NetworkPolicy selectors to newly created matching Pods; Kubeguard does not need to watch Pods for that behavior.
+- **No reconciliation:** The service does not persist desired isolation state or continuously repair policies that are edited or deleted outside Kubeguard. Kubernetes itself automatically applies existing NetworkPolicy selectors to newly created matching pods; Kubeguard does not need to watch pods for that behavior.
 - **Best-effort rollback:** If the second policy creation fails, Kubeguard attempts to remove the first. If rollback also fails, operator intervention may be required.
 - **CNI dependency:** Isolation only works when the cluster's CNI enforces NetworkPolicies. The reproducible test environment uses Calico v3.33.0.
 
 ### Hardening Constraints
 
-- **Broad targeting:** Hardening processes supported controllers in the requested namespaces rather than selecting individual workloads. Supported resources are Deployments, StatefulSets, and DaemonSets, including init containers; standalone Pods, Jobs, and CronJobs are excluded.
-- **No built-in undo:** Hardening changes Pod templates and triggers rollouts. Operators can restore manifests from version control or use rollout history where available. A future undo feature would record the original Pod template and resource version, then use optimistic concurrency checks to avoid overwriting later changes.
+- **Broad targeting:** Hardening processes supported controllers in the requested namespaces rather than selecting individual workloads. Supported resources are Deployments, StatefulSets, and DaemonSets, including init containers; standalone pods, Jobs, and CronJobs are excluded.
+- **No built-in undo:** Hardening changes pod templates and triggers rollouts. Operators can restore manifests from version control or use rollout history where available. A future undo feature would record the original pod template and resource version, then use optimistic concurrency checks to avoid overwriting later changes.
 - **Not transactional:** Namespace validation happens before updates, but an API error partway through a multi-workload or multi-namespace apply can leave earlier workloads modified.
 - **Compatibility risks:** Dropping capabilities, enforcing seccomp, or setting resource limits can break applications. The tool preserves existing settings and does not force `runAsNonRoot`, but defaults must still be reviewed against each workload.
 - **Demo sizing:** CPU and memory defaults demonstrate the mechanism; they are not production sizing recommendations. Hardening applies only when explicitly requested, so newly deployed workloads are not automatically hardened.
@@ -281,10 +304,10 @@ In priority order:
 
 1. **Make isolation compatible with real clusters.** Evaluate existing NetworkPolicies and their effective allow rules, detect conflicting policies, and either prove the requested isolation is enforceable or return an actionable conflict. Support multiple independent isolation operations with unique policy names and durable operation IDs.
 2. **Add reconciliation and recovery.** Persist desired isolation state, reconcile drift after restarts or manual changes, and record operation status. Use concurrency control so simultaneous requests cannot silently overwrite each other. `controller-runtime` or Kubebuilder would be useful if this evolves into a Kubernetes controller; for this bounded on-demand API, direct `client-go` calls kept the implementation smaller.
-3. **Make hardening reversible and safer.** Save original Pod templates, add `/hardening/undo` with resource-version checks, support workload selectors, validate admission and policy constraints, and optionally apply changes in stages with rollout-health checks.
+3. **Make hardening reversible and safer.** Save original pod templates, add `/hardening/undo` with resource-version checks, support workload selectors, validate admission and policy constraints, and optionally apply changes in stages with rollout-health checks.
 4. **Improve API security and observability.** Add authentication, least-privilege authorization, structured audit events, metrics, request tracing, and clearer operation status for partial failures.
-5. **Improve availability.** Add a PDB to protect against voluntary Pod evictions. For higher availability, move toward multiple replicas with `minAvailable: 1`, but first implement operation coordination or leader election. A PDB does not prevent involuntary node failures or guarantee uptime.
-6. **Expand testing and packaging.** Add fault-injection tests for API conflicts and partial multi-namespace updates, policy drift and restarts, and end-to-end tests for newly created matching Pods and more workload controller types. Add CI to run automated checks and a Helm chart for configurable deployment.
+5. **Improve availability.** Add a PDB to protect against voluntary pod evictions. For higher availability, move toward multiple replicas with `minAvailable: 1`, but first implement operation coordination or leader election. A PDB does not prevent involuntary node failures or guarantee uptime.
+6. **Expand testing and packaging.** Add fault-injection tests for API conflicts and partial multi-namespace updates, policy drift and restarts, and end-to-end tests for newly created matching pods and more workload controller types. Add CI to run automated checks and a Helm chart for configurable deployment.
 
 ## Verification and Why These Tests
 
@@ -310,7 +333,7 @@ The network verification script (`scripts/verify-isolation.sh`) checks **nine tr
 
 The hardening verification script (`scripts/verify-hardening.sh`) checks that sample workloads initially lack the defaults, preview proposes changes **without mutation**, apply updates workloads in **two namespaces**, the resulting Deployments roll out successfully, a second apply is **idempotent**, and a protected-namespace request is rejected **without partially mutating another namespace**.
 
-**Why:** Hardening is operationally risky: a preview must not change running workloads, retries must not continually rewrite Pod templates, and invalid multi-namespace requests must fail before changing anything.
+**Why:** Hardening is operationally risky: a preview must not change running workloads, retries must not continually rewrite pod templates, and invalid multi-namespace requests must fail before changing anything.
 
 The full `make verify` suite passed in a newly created kind cluster using Calico v3.33.0. This verifies the core behavior independently of the development cluster.
 
