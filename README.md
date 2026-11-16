@@ -2,7 +2,7 @@
 
 Kubeguard is a Go-based Kubernetes SRE tool that provides on-demand network isolation and workload security hardening.
 
-**Repository:** https://github.com/chinelo-obitube/kubeguard (private; reviewer access requires an invitation). The submission ZIP includes the complete source snapshot. The `v0.1.0` tag marks the initial implementation; the latest committed `main` includes subsequent fixes and documentation updates.
+**Repository:** https://github.com/chinelo-obitube/kubeguard. The submission ZIP includes the complete source snapshot. The `v0.1.0` tag marks the initial implementation; the latest committed `main` includes subsequent fixes and documentation updates.
 
 ## Technologies Used
 
