@@ -225,6 +225,10 @@ Inspect the results:
 kubectl -n hardening-demo-a get deployment demo-app -o yaml
 kubectl -n hardening-demo-b get deployment demo-app -o yaml
 ```
+## Delete Cluster
+```bash
+kind delete cluster --name kubeguard
+```
 
 ### Logs
 
